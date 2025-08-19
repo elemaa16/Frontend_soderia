@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/login_screen.dart';
 
 void main() {
   runApp(const FrontendSoderiaApp());
@@ -13,24 +14,12 @@ class FrontendSoderiaApp extends StatelessWidget {
       title: 'Sodería',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const LoginScreen(), // 👈 Este es el punto clave
     );
   }
 }
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Text('Pantalla de Login'),
-      ),
-    );
-  }
-}
 
