@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend_soderia/widgets/day_filter_buttons.dart';
+import 'package:frontend_soderia/widgets/visit_card.dart';
 
 class HomeScreen extends StatelessWidget {
   final String nombreUsuario;
@@ -32,6 +33,28 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const DayFilterButtons(), // 👈 los botones que creamos
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: ListView(
+                      children: const [
+                        VisitCard(
+                          nombre: 'Emmanuel Quintana Fattor',
+                          direccion: 'Juan de Lamadrid 1778',
+                          visitado: true,
+                        ),
+                        VisitCard(
+                          nombre: 'Gastón Brondani',
+                          direccion: 'Calle Falsa 123',
+                          visitado: false,
+                        ),
+                        VisitCard(
+                          nombre: 'Tamara Silva',
+                          direccion: 'Miller 1725',
+                          visitado: false,
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
