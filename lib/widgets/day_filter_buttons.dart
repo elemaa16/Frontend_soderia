@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 class DayFilterButtons extends StatefulWidget {
-  const DayFilterButtons({super.key});
+  
+  final Function(String) onFilterChanged;
+
+  const DayFilterButtons({super.key, required this.onFilterChanged});
 
   @override
   State<DayFilterButtons> createState() => _DayFilterButtonsState();
@@ -24,6 +27,7 @@ class _DayFilterButtonsState extends State<DayFilterButtons> {
               onPressed: () {
                 setState(() {
                   selected = opcion;
+                  widget.onFilterChanged(opcion); // Notifica al padre
                 });
               },
               style: OutlinedButton.styleFrom(

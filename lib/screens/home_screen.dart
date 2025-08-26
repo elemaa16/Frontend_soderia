@@ -2,20 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:frontend_soderia/widgets/day_filter_buttons.dart';
 import 'package:frontend_soderia/widgets/visit_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final String nombreUsuario;
 
   const HomeScreen({super.key, required this.nombreUsuario});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String filtroSeleccionado = 'Hoy'; 
+
+  @override
   Widget build(BuildContext context) {
+    
+    // Esta lista vendrá de una fuente real luego
+    final todasLasVisitas = [
+      {'nombre': 'Juan Pérez', 'direccion': 'Calle Falsa 123', 'visitado': false, 'dia': 'Hoy'},
+      {'nombre': 'María López', 'direccion': 'Av. Siempreviva 742', 'visitado': true, 'dia': 'Hoy'},
+      {'nombre': 'Carlos García', 'direccion': 'Ruta 9 km 15', 'visitado': false, 'dia': 'Mañana'},
+    ];
+
+    final visitasFiltradas = filtroSeleccionado == 'Hoy'
+        ? todasLasVisitas
+        : todasLasVisitas.where((v) => v['día'] == filtroSeleccionado).toList();
+    
     return Scaffold(
       drawer: _buildDrawer(context),
       body: Row(
         children: [
           // Menu lateral para tablets (opcional en celualres)
           if (MediaQuery.of(context).size.width >= 600) _buildDrawer(context),
-
           // Contenido principal
           Expanded(
             child: Padding(
@@ -25,35 +43,31 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 20),
                   Text(
-                    'Hola, $nombreUsuario!',
+                    'Hola, ${widget.nombreUsuario}!',
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const DayFilterButtons(), // 👈 los botones que creamos
+                  DayFilterButtons(
+                    onFilterChanged: (nuevoFiltro) {
+                      setState(() {
+                        filtroSeleccionado = nuevoFiltro;
+                      });
+                    },
+                  ), // 👈 los botones que creamos
                   const SizedBox(height: 24),
                   Expanded(
                     child: ListView(
-                      children: const [
-                        VisitCard(
-                          nombre: 'Emmanuel Quintana Fattor',
-                          direccion: 'Juan de Lamadrid 1778',
-                          visitado: true,
-                        ),
-                        VisitCard(
-                          nombre: 'Gastón Brondani',
-                          direccion: 'Calle Falsa 123',
-                          visitado: false,
-                        ),
-                        VisitCard(
-                          nombre: 'Tamara Silva',
-                          direccion: 'Miller 1725',
-                          visitado: false,
-                        ),
-                      ],
-                    ),
+                      children: visitasFiltradas.map((v) {
+                        return VisitCard(
+                          nombre: v['nombre'] as String,
+                          direccion: v['direccion'] as String,
+                          visitado: v['visitado'] as bool,
+                        );
+                      }).toList(),
+                  ),
                   ),
                 ],
               ),
