@@ -126,30 +126,48 @@ class SyncService {
     Map<String, dynamic> payload,
   ) async {
     try {
+      // 1) CREAR (idempotente en backend por idempotency_key: si ya existía,
+      //    devuelve el mismo pedido con 200).
       debugPrint('📤 [PEDIDO] POST /pedidos/ body=${jsonEncode(payload)}');
-      final resp = await _dio.post(
+      final respCrear = await _dio.post(
         '/pedidos/',
         data: payload,
         options: Options(
           headers: {'Idempotency-Key': payload['idempotency_key']},
         ),
       );
-      debugPrint('📥 [PEDIDO] status=${resp.statusCode} data=${resp.data}');
+      final idPedido = respCrear.data['id_pedido'];
+      debugPrint(
+        '📥 [PEDIDO] creado id=$idPedido status=${respCrear.statusCode}',
+      );
 
-      final serverId = resp.data['id_pedido'];
+      // 2) CONFIRMAR (idempotente tras el fix del backend: si ya estaba
+      //    confirmado devuelve 200 sin re-aplicar deuda/stock/envases/pago).
+      final respConf = await _dio.post(
+        '/pedidos/$idPedido/confirmar',
+        data: {
+          'id_repartodia': payload['id_repartodia'],
+          if (payload['envases'] != null) 'envases': payload['envases'],
+        },
+      );
+      debugPrint(
+        '📥 [PEDIDO] confirmado id=$idPedido status=${respConf.statusCode}',
+      );
 
+      // 3) Marcar local como sincronizado
       await (db.update(
         db.pedidosLocales,
       )..where((t) => t.localUuid.equals(op.entityLocalId))).write(
         PedidosLocalesCompanion(
-          serverId: Value(serverId),
+          serverId: Value(idPedido),
           estadoSync: const Value('SYNCED'),
         ),
       );
     } on DioException catch (e) {
-      debugPrint('🛑 [PEDIDO] Dio status=${e.response?.statusCode}');
-      debugPrint('🛑 [PEDIDO] body=${e.response?.data}');
-      rethrow; // que _procesarOperacion lo marque ERROR, pero ya vimos el body
+      debugPrint(
+        '🛑 [PEDIDO] Dio status=${e.response?.statusCode} body=${e.response?.data}',
+      );
+      rethrow; // que _procesarOperacion lo marque ERROR con el body visible
     }
   }
 }

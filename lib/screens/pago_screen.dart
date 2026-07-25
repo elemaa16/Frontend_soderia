@@ -10,6 +10,12 @@ import 'package:frontend_soderia/services/cliente_service.dart';
 import 'package:frontend_soderia/services/pedido_service.dart';
 import 'package:frontend_soderia/services/reparto_dia_service.dart';
 
+import 'dart:async'; // unawaited
+import 'package:frontend_soderia/data/local/local_db.dart';
+import 'package:frontend_soderia/data/local/daos/sync_queue_dao.dart';
+import 'package:frontend_soderia/repositories/pedido_repository.dart';
+import 'package:frontend_soderia/sync/sync_service.dart';
+
 class LineaVenta {
   final String nroPedido;
   final String producto;
@@ -52,6 +58,13 @@ class PagoScreen extends StatefulWidget {
 
   @override
   State<PagoScreen> createState() => _PagoScreenState();
+}
+
+Future<int?> _obtenerIdRepartoDiaActual() async {
+  final reparto = await appDb
+      .select(appDb.repartoActualLocal)
+      .getSingleOrNull();
+  return reparto?.idReparto;
 }
 
 class _PagoScreenState extends State<PagoScreen> {
@@ -249,27 +262,6 @@ class _PagoScreenState extends State<PagoScreen> {
         throw Exception('Legajo inválido: ${widget.legajo}');
       }
 
-      final idMedio = _mapMedioPagoToId(_medio);
-
-      // Estado según pago + saldo a favor
-      /*       final estado = _resolverEstadoPedido(
-        totalVenta: widget.total,
-        deudaActual: widget.deudaActual,
-        saldoAFavor: widget.saldoAFavorActual,
-        montoAbonado: _montoElegido!,
-      );
- */
-      // 👇 AHORA OBTENEMOS EL REPARTO REAL DESDE EL BACK
-      final reparto = await _repartoDiaService.obtenerPorFecha(
-        fecha: widget.fecha,
-        idEmpresa: 1,
-        // si más adelante manejás usuario logueado, pasás idUsuario acá
-        // idUsuario: ...
-      );
-      debugPrint('📅 [PAGO] reparto obtenido=$reparto');
-      debugPrint('💰 [PAGO] montoElegido=$_montoElegido medio=${_medio.name}');
-      final int idRepartoDia = reparto['id_repartodia'] as int;
-
       final idCuenta = widget.idCuenta;
       if (idCuenta == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -280,48 +272,57 @@ class _PagoScreenState extends State<PagoScreen> {
         return;
       }
 
-      // Crear pedido
-      final pedido = await _pedidoService.crearPedido(
-        legajo: legajoInt,
-        idMedioPago: idMedio,
-        fecha: widget.fecha,
-        montoTotal: widget.total,
-        montoAbonado: _montoElegido!,
-        idEmpresa: 1,
-        // estado: estado,
-        idRepartoDia: idRepartoDia,
-        idCuenta: idCuenta,
-        items: _buildItemsPayload(),
-      );
+      final idRepartoDia = await _obtenerIdRepartoDiaActual();
+      if (idRepartoDia == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No hay reparto actual cargado en el dispositivo'),
+          ),
+        );
+        return;
+      }
 
-      final idPedido = pedido['id_pedido'] as int;
+      final idMedio = _mapMedioPagoToId(_medio);
 
-      // Confirmar pedido con envases
       final envasesPayload = _productosEnvase
           .where(
             (p) => (p['entregados'] as int) > 0 || (p['devueltos'] as int) > 0,
           )
           .map(
-            (p) => EnvaseMovimiento(
-              idProducto: p['id_producto'] as int,
-              entregados: p['entregados'] as int,
-              devueltos: p['devueltos'] as int,
-            ),
+            (p) => {
+              'id_producto': p['id_producto'],
+              'entregados': p['entregados'],
+              'devueltos': p['devueltos'],
+            },
           )
           .toList();
 
-      await _pedidoService.confirmarPedido(
-        idPedido: idPedido,
+      final pedidoRepo = PedidoRepository(
+        db: appDb,
+        queueDao: SyncQueueDao(appDb),
+      );
+
+      await pedidoRepo.crearPedidoOffline(
+        legajo: legajoInt,
+        idCuenta: idCuenta,
         idRepartoDia: idRepartoDia,
+        idMedioPago: idMedio,
+        montoTotal: widget.total,
+        montoAbonado: _montoElegido!,
+        items: _buildItemsPayload(),
         envases: envasesPayload,
       );
 
+      // Si hay red, sincronizamos ya (no bloqueante). Si no, queda en cola
+      // y se sincroniza en el próximo bootstrap de HomeScreen o con el botón.
+      final syncService = SyncService(db: appDb, queueDao: SyncQueueDao(appDb));
+      unawaited(syncService.syncPendientes());
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Pedido #$idPedido creado y confirmado.\n'
-            'Pago registrado: ${_money(_montoElegido!)}',
-          ),
+        const SnackBar(
+          content: Text('Pedido registrado. Se sincronizará automáticamente.'),
         ),
       );
 

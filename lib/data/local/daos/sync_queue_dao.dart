@@ -60,6 +60,7 @@ class SyncQueueDao {
     await (db.update(db.syncQueue)..where((t) => t.id.equals(id))).write(
       SyncQueueCompanion(
         status: const Value('SYNCED'),
+        lastError: const Value(null), // limpiar error de intentos previos
         updatedAt: Value(DateTime.now()),
       ),
     );

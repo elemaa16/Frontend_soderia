@@ -474,43 +474,6 @@ class _VentaScreenState extends State<VentaScreen> {
 
     final total = _total;
 
-    final pedidoRepo = PedidoRepository(
-      db: appDb,
-      queueDao: SyncQueueDao(appDb),
-    );
-
-    final itemsPayload = _carrito.values.map((item) {
-      return {
-        'id_producto': item.tipo == TipoItemVenta.producto ? item.idItem : null,
-        'id_combo': item.tipo == TipoItemVenta.combo ? item.idItem : null,
-        'cantidad': item.cantidad.toDouble(),
-        'precio_unitario': item.precioUnitario,
-      };
-    }).toList();
-
-    final idRepartoDia = await _obtenerIdRepartoDiaActual();
-
-    if (idRepartoDia == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No hay reparto actual cargado en el dispositivo'),
-        ),
-      );
-      return;
-    }
-
-    await pedidoRepo.crearPedidoOffline(
-      legajo: int.parse(legajo),
-      idCuenta: idCuenta,
-      idRepartoDia: idRepartoDia,
-      idMedioPago: idMedioPago,
-      montoTotal: total,
-      items: itemsPayload,
-    );
-
-    if (!mounted) return;
-
     final result = await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => PagoScreen(
