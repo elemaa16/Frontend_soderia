@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import 'package:flutter/foundation.dart'; // debugPrint
 
 class SyncQueueDao {
   final AppDatabase db;
@@ -115,11 +116,25 @@ class SyncQueueDao {
   }
 
   Future<void> resetHuerfanas() async {
-    await (db.update(db.syncQueue)
-          ..where((t) => t.status.equals('SYNCING')))
-        .write(SyncQueueCompanion(
-          status: const Value('PENDING'),
-          updatedAt: Value(DateTime.now()),
-        ));
+    await (db.update(
+      db.syncQueue,
+    )..where((t) => t.status.equals('SYNCING'))).write(
+      SyncQueueCompanion(
+        status: const Value('PENDING'),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> debugDumpQueue() async {
+    final rows = await db.select(db.syncQueue).get();
+    debugPrint('===== SYNC QUEUE (${rows.length} filas) =====');
+    for (final r in rows) {
+      debugPrint(
+        '#${r.id} type=${r.entityType} action=${r.action} '
+        'status=${r.status} lastError=${r.lastError}',
+      );
+    }
+    debugPrint('=========================================');
   }
 }

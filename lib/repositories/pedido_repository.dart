@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 
 import '../data/local/app_database.dart';
 import '../data/local/daos/sync_queue_dao.dart';
+import 'package:flutter/foundation.dart';
 
 class PedidoRepository {
   final AppDatabase db;
@@ -76,7 +77,10 @@ class PedidoRepository {
           ),
         );
       }
-
+      debugPrint(
+        '🧾 [PEDIDO OFFLINE] idRepartoDia=$idRepartoDia legajo=$legajo '
+        'idCuenta=$idCuenta montoTotal=$montoTotal items=$items',
+      );
       // 4. Encolar sync
       await queueDao.enqueue(
         localOperationId: _uuid.v4(),
