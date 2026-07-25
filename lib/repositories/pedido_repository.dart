@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 
 import '../data/local/app_database.dart';
 import '../data/local/daos/sync_queue_dao.dart';
+import 'package:flutter/foundation.dart';
 
 class PedidoRepository {
   final AppDatabase db;
