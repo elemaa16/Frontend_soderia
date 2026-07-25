@@ -266,6 +266,8 @@ class _PagoScreenState extends State<PagoScreen> {
         // si más adelante manejás usuario logueado, pasás idUsuario acá
         // idUsuario: ...
       );
+      debugPrint('📅 [PAGO] reparto obtenido=$reparto');
+      debugPrint('💰 [PAGO] montoElegido=$_montoElegido medio=${_medio.name}');
       final int idRepartoDia = reparto['id_repartodia'] as int;
 
       final idCuenta = widget.idCuenta;

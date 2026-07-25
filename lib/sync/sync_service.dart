@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../data/local/app_database.dart';
 import '../data/local/daos/sync_queue_dao.dart';
 import '../core/net/api_client.dart';
+import 'package:flutter/foundation.dart'; // debugPrint
 
 class SyncService {
   final AppDatabase db;
@@ -34,27 +35,33 @@ class SyncService {
     try {
       await queueDao.markSyncing(op.id);
 
+      debugPrint(
+        '🔄 [SYNC] op #${op.id} tipo=${op.entityType} '
+        'action=${op.action} entityLocalId=${op.entityLocalId}',
+      );
+      debugPrint('🔄 [SYNC] payload=${op.payloadJson}');
+
       final payload = jsonDecode(op.payloadJson);
 
       switch (op.entityType) {
         case 'pago':
           await _syncPago(op, payload);
           break;
-
         case 'visita':
           await _syncVisita(op, payload);
           break;
-
         case 'pedido':
           await _syncPedido(op, payload);
           break;
-
         default:
           throw Exception('Tipo no soportado: ${op.entityType}');
       }
 
       await queueDao.markSynced(op.id);
-    } catch (e) {
+      debugPrint('✅ [SYNC] op #${op.id} OK');
+    } catch (e, st) {
+      debugPrint('❌ [SYNC] op #${op.id} FALLÓ: $e');
+      debugPrint('❌ [SYNC] stack: $st');
       await queueDao.markError(op.id, e.toString());
     }
   }
@@ -118,23 +125,31 @@ class SyncService {
     SyncQueueData op,
     Map<String, dynamic> payload,
   ) async {
-    final resp = await _dio.post(
-      '/pedidos/',
-      data: payload,
-      options: Options(
-        headers: {'Idempotency-Key': payload['idempotency_key']},
-      ),
-    );
+    try {
+      debugPrint('📤 [PEDIDO] POST /pedidos/ body=${jsonEncode(payload)}');
+      final resp = await _dio.post(
+        '/pedidos/',
+        data: payload,
+        options: Options(
+          headers: {'Idempotency-Key': payload['idempotency_key']},
+        ),
+      );
+      debugPrint('📥 [PEDIDO] status=${resp.statusCode} data=${resp.data}');
 
-    final serverId = resp.data['id_pedido'];
+      final serverId = resp.data['id_pedido'];
 
-    await (db.update(
-      db.pedidosLocales,
-    )..where((t) => t.localUuid.equals(op.entityLocalId))).write(
-      PedidosLocalesCompanion(
-        serverId: Value(serverId),
-        estadoSync: const Value('SYNCED'),
-      ),
-    );
+      await (db.update(
+        db.pedidosLocales,
+      )..where((t) => t.localUuid.equals(op.entityLocalId))).write(
+        PedidosLocalesCompanion(
+          serverId: Value(serverId),
+          estadoSync: const Value('SYNCED'),
+        ),
+      );
+    } on DioException catch (e) {
+      debugPrint('🛑 [PEDIDO] Dio status=${e.response?.statusCode}');
+      debugPrint('🛑 [PEDIDO] body=${e.response?.data}');
+      rethrow; // que _procesarOperacion lo marque ERROR, pero ya vimos el body
+    }
   }
 }

@@ -122,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // y recién se vería actualizado en la siguiente recarga.
     try {
       await _syncService.syncPendientes();
+      await _syncQueueDao.debugDumpQueue();
     } catch (_) {}
 
     try {
